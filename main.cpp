@@ -68,7 +68,7 @@ struct Job {
 	 * 
 	 *
 	 */
-	unsigned int id;
+	unsigned int id; // aka the index of this job in the Sim's jobs vector
 	unsigned int workspace; 
 	JobStatus status;
 	double releaseTime;
@@ -96,7 +96,7 @@ struct Workspace {
 	 */
 	int id;
 	vector<Machine> machines; // Machine contains jobId(int) and busy(bool)
-    int wip;
+	vector<Job> wip;
 
 
     int finishMachine(int mId) {
@@ -125,17 +125,35 @@ struct Workspace {
     }
     
     int findIdle() { // returns index of an idle machine, if none, return -1
-        for (size_t i = 0; i < machines.size(); i++) {
-            if (!machines[i].busy) {
-                return static_cast<int>(i);
-            }
-        }
-        return -1;
+			for (size_t i = 0; i < machines.size(); i++) {
+					if (!machines[i].busy) {
+							return static_cast<int>(i);
+					}
+			}
+			return -1;
     }
+		
+		bool anyWIP() {
+			if (wip.size() > 0) {
+				return true;
+			}
+		}
+		
+		Job findWIP() { // only call after anyWIP
+			return wip.front();
+		}
+
 };
 
 struct Sim {
 	/*
+		Good thing to thing about is that Workspace, Machine, or Job
+		should NEVER control what actually gets loaded. All of the
+		policy logic should be handled inside of sim.
+			- Example of how that works in practice
+				Workspace's startMachine method should take in a job rather than
+				itself looking at all of its jobs
+
     1) on SERVICE_END, what should it do?
         - move the finished job to the next workspace and check if it has idle machines, if so schedule new event
         - check if the current workspace has wip and load if it does, if so schedule new event
@@ -149,6 +167,7 @@ struct Sim {
 
 	*/
 	double now = 0; // time var
+	double delay = 0.5; // material tick every 0.5 seconds
 	priority_queue<Event, vector<Event>, Earlier> timeline;
     vector<Workspace> workspaces;
     vector<Job> jobs;
@@ -175,22 +194,33 @@ struct Sim {
         */
         switch(e.type) {
             case EventType::SERVICE_END:
+							/*
+							 * finishes the machine, returns the jobId
+							 * check the next station if it has any idle
+							 * check the current station if it has any wip
+							*/
                 int station = workspaces[e.workspaceId];
                 int jId = station.finishMachine(e.machineId);
                 
-                if (station.wip != 0) {
-                    Event newServiceEndEvent = station.startMachine(); // returns an Event
+                if (station.anyWIP()) {
+                    Event newServiceEndEvent = station.startMachine(station.findWIP()); // returns an Event
                     timeline.push(newEvent);
                 }                
                 break;
             case EventType::MATERIAL_TICK:
                 Workspace firstWS = workspaces[0];
                 if (firstWS.anyIdle()) { // this is where a policy check would go
+										/*
+										 * right now this checks if there are any idle machines at the original workspace
+										 * then, releases a job to it, schedules a serviceEnd, and inserts a release tick at now + delay
+										*/
                     Job newJob = Job(static_cast<unsigned int>(jobs.size()), JobStatus::IDLE, now);
                     jobs.push_back(newJob);
-                    Event newReleaseEvent = firstWS.startMachine(jobs.back());
-                    schedule(newReleaseEvent);
+                    Event new = firstWS.startMachine(jobs.back());
+                    schedule(newReleaseEvent); 
                 }
+								Event newServiceEnd = (now + delay, EventType:MATERIAL_TICK, -1, -1);
+								schedule(newServiceEnd);
                 break;
         }
     }
