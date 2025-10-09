@@ -1,11 +1,16 @@
 #include <random>
 #include <vector>
 #include <queue>
+#include <algorithm>  // Add this include at the top if not already present
 
 using namespace std;
 
-enum class EventType {SERVICE_END, MATERIAL_TICK};
+enum class EventType {SERVICE_END, MATERIAL_TICK, POLICY_CHECK};
+// SERVICE_END, a machine has finished -- account for that
+// MATERIAL_TICK, after a fixed delay check if material should be released
+// POLICY_CHECK, after a fixed delay check if workspaces should load wip into machines
 enum class JobStatus {IDLE, ACTIVE, COMPLETED};
+enum class PolicyType {RUN_IMMEDIATELY};
 
 struct Event {
 	double time;
@@ -92,26 +97,40 @@ struct Workspace {
 	 * 1) id (in order, i.e. 1 -> 2 -> -> 3)
 	 * 2) Vec of machines
 	 * 3) WIP at Workspace
+     * 4) a Distribution
      * How do I track busy?
 	 */
 	int id;
 	vector<Machine> machines; // Machine contains jobId(int) and busy(bool)
-	vector<Job> wip;
+	vector<int> wip;
+    NormDist dist;
 
 
     int finishMachine(int mId) {
-        Machine machine = machines[mId];
-        machine.busy = false;
-        int jId = machine.jobId;
-        machine.jobId = -1;
+        // return jId
+        machines[mId].busy = false;
+        int jId = machines[mId].jobId;
+        machines[mId].jobId = -1;
+        
+        // remove job from wip
+        auto it = find(wip.begin(), wip.end(), jId);
+        if (it != wip.end()) {
+            wip.erase(it);
+        }
+        
         return jId;
     }    
     
-    Event startMachine(Job& job) { // should only be called after calling anyIdle
+    Event startMachine(Job& job, double time) { // should only be called after calling anyIdle
         job.status = JobStatus::ACTIVE;
-        int machine = machines[findIdle()];
+        int machineId = findIdle()
+        Machine machine = machines[machineId];
         machine.busy = true;
         machine.jobId = job.jobId;
+        
+        double delay = NormDist.sample();
+        
+        return Event(time + delay, EventType::SERVICE_END, job.workspace, machineId)
 
     }
     
@@ -133,15 +152,15 @@ struct Workspace {
 			return -1;
     }
 		
-		bool anyWIP() {
-			if (wip.size() > 0) {
-				return true;
-			}
-		}
-		
-		Job findWIP() { // only call after anyWIP
-			return wip.front();
-		}
+    bool anyWIP() {
+        if (wip.size() > 0) {
+            return true;
+        }
+    }
+    
+    int findWIP() { // only call after anyWIP
+        return wip.front();
+    }
 
 };
 
@@ -153,6 +172,10 @@ struct Sim {
 			- Example of how that works in practice
 				Workspace's startMachine method should take in a job rather than
 				itself looking at all of its jobs
+        
+        Also, Sim shouldn't have to update jobs, machines, or workspaces as
+        idle/active or move jobs between stations -- it should only ever
+        query that information
 
     1) on SERVICE_END, what should it do?
         - move the finished job to the next workspace and check if it has idle machines, if so schedule new event
@@ -171,13 +194,18 @@ struct Sim {
 	priority_queue<Event, vector<Event>, Earlier> timeline;
     vector<Workspace> workspaces;
     vector<Job> jobs;
+    PolicyType policy = PolicyType::RUN_IMMEDIATELY;
     
     void run() {
-        Event e(0.0, EventType::MATERIAL_TICK, -1, -1);
+        Event matTick(0.0, EventType::MATERIAL_TICK, -1, -1); // first material tick event
 
-        schedule(e);
-        while (timeline.size > 0) {
-            e = timeline.top();
+        Event polCheck(0.0, EventType::POLICY_CHECK, -1, -1) // first policy check event
+
+        schedule(matTick);
+        schedule(polCheck);
+
+        while (timeline.size > 0) { // Event Loop, 
+            e = timeline.top(); // pop doesn't return the element popped
             timeline.pop();
             now = e.time;
             handle_event(e);
@@ -202,8 +230,8 @@ struct Sim {
                 int station = workspaces[e.workspaceId];
                 int jId = station.finishMachine(e.machineId);
                 
-                if (station.anyWIP()) {
-                    Event newServiceEndEvent = station.startMachine(station.findWIP()); // returns an Event
+                if (station.anyWIP()) { // this is where a policy check should go
+                    Event newServiceEndEvent = station.startMachine(jobs[station.findWIP()], now); // returns an Event
                     timeline.push(newEvent);
                 }                
                 break;
@@ -216,11 +244,17 @@ struct Sim {
 										*/
                     Job newJob = Job(static_cast<unsigned int>(jobs.size()), JobStatus::IDLE, now);
                     jobs.push_back(newJob);
-                    Event new = firstWS.startMachine(jobs.back());
+                    Event new = firstWS.startMachine(jobs.back(), now);
                     schedule(newReleaseEvent); 
                 }
 								Event newServiceEnd = (now + delay, EventType:MATERIAL_TICK, -1, -1);
 								schedule(newServiceEnd);
+                break;
+            case EventType::POLICY_CHECK:
+                for (Workspace station : workspaces) {
+                    
+                }
+            
                 break;
         }
     }
@@ -229,6 +263,34 @@ struct Sim {
         timeline.push(e);
     }
     
+    void progressJob(int jId) {
+        /*
+         * called when a machine has finished working on a job
+         * 
+         * what should it do?
+         * 1) either progress the job to the next station or account for it being complete
+         *  - change status, workspace and machine to account for that
+         *  - need to update the workspace it moves to's wip vector
+         * 2) if (policyCheck()) then load it into the next machine
+         *  - change status, workspace and machine to account for that
+        */
+        
+    }
+
+   bool policyCheck(PolicyType pt, Workspace station) {
+       /*
+        *
+       */
+       switch (pt) {
+           case PolicyType::RUN_IMMEDIATELY:
+               for (Workspace station: workspaces) {
+                    if(station.anyIdle() && station.anyWIP) {
+                        return true;
+                    }
+               }
+               break;
+       }
+   } 
     
     
 };
