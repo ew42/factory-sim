@@ -1,0 +1,55 @@
+#ifndef SIMULATION_H
+#define SIMULATION_H
+
+#include <vector>
+#include <queue>
+#include <fstream>
+#include <stdexcept>
+#include <iostream>
+#include "types.h"
+#include "events.h"
+#include "factory.h"
+#include "json.hpp"
+
+struct Sim {
+    /*
+        Good thing to think about is that Workspace, Machine, or Job
+        should NEVER control what actually gets loaded. All of the
+        policy logic should be handled inside of sim.
+            - Example of how that works in practice
+                Workspace's startMachine method should take in a job rather than
+                itself looking at all of its jobs
+        
+        Also, Sim shouldn't have to update jobs, machines, or workspaces as
+        idle/active or move jobs between stations -- it should only ever
+        query that information
+
+    1) on SERVICE_END, what should it do?
+        - move the finished job to the next workspace and check if it has idle machines, if so schedule new event
+        - check if the current workspace has wip and load if it does, if so schedule new event
+    2) on RELEASE_TICK, what should it do?
+        - call policy ontick and schedule another release_tick
+        
+    methods:
+        run -- loads the first material release, starts running the clock, and going through the heap
+        schedule -- takes an event, puts it into the heap
+        handleEvent -- takes in events and processes, see 1) above for SERVICE_END and 2) for RELEASE_TICK
+
+    */
+    double now = 0; // time var
+    double delay = 0.5; // material tick every 0.5 seconds
+    std::priority_queue<Event, std::vector<Event>, Earlier> timeline;
+    std::vector<Workspace> workspaces;
+    std::vector<Job> jobs;
+    PolicyType policy = PolicyType::RUN_IMMEDIATELY;
+    
+    void run();
+    void handleEvent(const Event& e);
+    void schedule(const Event& e);
+    void progressJob(int jId);
+    void runPolicy();
+    void loadFromConfig(const std::string& configPath);
+};
+
+#endif // SIMULATION_H
+
