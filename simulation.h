@@ -5,11 +5,12 @@
 #include <queue>
 #include <fstream>
 #include <stdexcept>
-#include <iostream>
+#include <algorithm>
 #include "types.h"
 #include "events.h"
 #include "factory.h"
 #include "json.hpp"
+#include "state_io.h"
 
 struct Sim {
     /*
@@ -36,8 +37,10 @@ struct Sim {
         handleEvent -- takes in events and processes, see 1) above for SERVICE_END and 2) for RELEASE_TICK
 
     */
+    int totalTh = 0; // total throughput
     double now = 0; // time var
-    double delay = 0.5; // material tick every 0.5 seconds
+    double delay = 0.5; // policy tick every 0.5 seconds
+    double stepSize = 1;
     std::priority_queue<Event, std::vector<Event>, Earlier> timeline;
     std::vector<Workspace> workspaces;
     std::vector<Job> jobs;
@@ -49,7 +52,9 @@ struct Sim {
     void progressJob(int jId);
     void runPolicy();
     void loadFromConfig(const std::string& configPath);
+    void stepUntil(double runUntil);
+    std::vector<WorkspaceView> getWorkspaceView();
+    MetricsView getMetricsView();
 };
 
 #endif // SIMULATION_H
-

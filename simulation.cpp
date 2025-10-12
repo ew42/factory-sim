@@ -9,7 +9,6 @@ void Sim::run() {
         timeline.pop();
         now = e.time;
         handleEvent(e);
-        std::cout << "Time: " << now << std::endl;
     }
 }
 
@@ -66,6 +65,7 @@ void Sim::progressJob(int jId) {
     job.workspace++;
     if (job.workspace >= workspaces.size()) { // if at the last workspace
         job.status = JobStatus::COMPLETED;
+        totalTh++;
     }
     else {
         job.status = JobStatus::IDLE;
@@ -82,6 +82,10 @@ void Sim::runPolicy() {
         case PolicyType::RUN_IMMEDIATELY:
             for (Workspace& ws : workspaces) {
                 // check if there's any wip, check if there's any free machines, and then load them
+                if (ws.anyIdle() && ws.id == 0) {
+                    jobs.emplace_back(static_cast<int>(jobs.size()), JobStatus::IDLE, now);
+                    ws.wip.push_back(jobs.back().id);
+                } 
                 if (ws.anyIdle() && ws.anyWIP()) {
                     Event newServiceEnd = ws.startMachine(jobs[ws.findWIP()], now);
                     schedule(newServiceEnd);
@@ -120,4 +124,36 @@ void Sim::loadFromConfig(const std::string& configPath) {
         workspaces.emplace_back(wsId, mean, stdev, machineNum);
     }
 }
+void Sim::stepUntil(double runUntil) {
+    while (timeline.size() != 0 && timeline.top().time <= runUntil) {
+        Event e = timeline.top();
+        timeline.pop();
+        handleEvent(e);
+    }
+}
+std::vector<WorkspaceView> Sim::getWorkspaceView() {
+    std::vector<WorkspaceView> ret;
 
+    for (const Workspace& station : workspaces) {
+        int id = station.id;
+        int m = static_cast<int>(station.machines.size());
+        int busy = std::count_if(station.machines.begin(), station.machines.end(), 
+                                [](const Machine& machine) { return machine.busy; });
+        int wip = static_cast<int>(station.wip.size());
+        ret.push_back(WorkspaceView{id, m, busy, wip});
+    }
+    return ret;
+}
+
+MetricsView Sim::getMetricsView() {
+    double time = now;
+    double avgTh = (time > 0) ? static_cast<double>(totalTh) / time : 0.0; // need to control for divide by 0
+    int wip = 0;
+    
+    for (const Workspace& station : workspaces) {
+        wip += static_cast<int>(station.wip.size());
+    }
+    
+    return MetricsView{time, avgTh, wip};
+
+}
