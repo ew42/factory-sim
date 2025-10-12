@@ -51,10 +51,14 @@ struct Sim {
     void schedule(const Event& e);
     void progressJob(int jId);
     void runPolicy();
-    void loadFromConfig(const std::string& configPath);
+    void loadFromConfigString(const std::string& jsonString); // web version
+    void loadFromConfig(const std::string& configPath); // local version
     void stepUntil(double runUntil);
     std::vector<WorkspaceView> getWorkspaceView();
     MetricsView getMetricsView();
+
+private:
+    void loadFromJsonConfig(const nlohmann::json& config);
 };
 
 #endif // SIMULATION_H

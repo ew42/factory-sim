@@ -19,7 +19,7 @@ EMSCRIPTEN_BINDINGS(factory_sim) {
     emscripten::class_<Sim>("Sim")
         .constructor<>()
         .function("stepUntil", &Sim::stepUntil)
-        .function("loadFromConfig", &Sim::loadFromConfig)
+        .function("loadFromConfig", &Sim::loadFromConfigString)
         .function("getWorkspaceView", &Sim::getWorkspaceView)
         .function("getMetricsView", &Sim::getMetricsView);
 

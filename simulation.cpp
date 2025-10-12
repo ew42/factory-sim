@@ -97,8 +97,14 @@ void Sim::runPolicy() {
 
 }
 
-void Sim::loadFromConfig(const std::string& configPath) {
-    // Read and parse the JSON configuration file
+#ifdef __EMSCRIPTEN__
+void Sim::loadFromConfigString(const std::string& jsonString) { // overloaded method for binding for web interface
+    nlohmann::json parsedConfig = nlohmann::json::parse(jsonString); // parses that string
+    loadFromJsonConfig(parsedConfig);
+}
+#endif
+
+void Sim::loadFromConfig(const std::string& configPath) { // overloaded method for .json files
     std::ifstream configFile(configPath);
     if (!configFile.is_open()) {
         throw std::runtime_error("Could not open config file: " + configPath);
@@ -108,10 +114,12 @@ void Sim::loadFromConfig(const std::string& configPath) {
     configFile >> config;
     configFile.close();
     
-    // Clear existing workspaces
+    loadFromJsonConfig(config);
+}
+
+void Sim::loadFromJsonConfig(const nlohmann::json& config) {
     workspaces.clear();
     
-    // Create workspaces from configuration
     const auto& stations = config["stations"];
     for (size_t i = 0; i < stations.size(); ++i) {
         const auto& station = stations[i];

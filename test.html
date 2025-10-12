@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factory Sim</title>
+</head>
+<body>
+    <h1>Factory Simualation</h1>
+    <div id="output"></div>
+    
+    <script src="factory-sim.js"></script>
+    <script>
+        Module.onRuntimeInitialized = function() {
+            console.log("WASM loaded successfully!");
+            
+            try {
+                let sim = new Module.Sim();
+                console.log("Sim object created:", sim);
+                
+                let config = {
+                    "stations": [
+                        {"m": 2, "mean":5.0, "stdev": 0.5},
+                        {"m": 3, "mean":6.0, "stdev": 0.4}
+                    ]
+                }
+                
+                sim.loadFromConfig(JSON.stringify(config));
+                let stations = sim.getWorkspaceView();
+                
+                console.log(stations.get(0));
+                console.log(stations.get(1));
+                
+                console.log("stepUntil method:", typeof sim.stepUntil);
+                console.log("getMetricsView method:", typeof sim.getMetricsView);
+                
+                document.getElementById('output').innerHTML = "WASM loaded and Sim Object Created"
+            }
+            catch (error) {
+                console.error("Error:", error);
+                document.getElementById('output').innerHTML = "Error: " + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
