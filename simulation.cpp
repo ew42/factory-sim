@@ -22,25 +22,19 @@ void Sim::handleEvent(const Event& e) {
     switch(e.type) {
         case EventType::SERVICE_END:
         {
-            Workspace& station = workspaces[e.workspaceId];
-            int jId = station.finishMachine(e.machineId);
-            progressJob(jId);
+            // bounds check
+            if (e.workspaceId >= 0 && e.workspaceId < static_cast<int>(workspaces.size())) {
+                Workspace& station = workspaces[e.workspaceId];
+                if (e.machineId >= 0 && e.machineId < static_cast<int>(station.machines.size())) {
+                    int jId = station.finishMachine(e.machineId);
+                    if (jId >= 0 && jId < static_cast<int>(jobs.size())) {
+                        progressJob(jId);
+                    }
+                }
+            }
             break;
         }
         case EventType::POLICY_CHECK:
-            // Workspace firstWS = workspaces[0];
-            // if (firstWS.anyIdle()) { // this is where a policy check would go
-            //                  /*
-            //                   * right now this checks if there are any idle machines at the original workspace
-            //                   * then, releases a job to it, schedules a serviceEnd, and inserts a release tick at now + delay
-            //                  */
-            //     Job newJob = Job(static_cast<unsigned int>(jobs.size()), JobStatus::IDLE, now);
-            //     jobs.push_back(newJob);
-            //     Event new = firstWS.startMachine(jobs.back(), now);
-            //     schedule(newReleaseEvent); 
-            // }
-            //                 Event newServiceEnd = (now + delay, EventType:MATERIAL_TICK, -1, -1);
-            //                 schedule(newServiceEnd);
             runPolicy();
             Event newPolicyCheck = Event(now + delay, EventType::POLICY_CHECK, -1, -1);
             schedule(newPolicyCheck);
@@ -61,6 +55,11 @@ void Sim::progressJob(int jId) {
      *  - change status, workspace and machine to account for that
      *  - need to update the workspace it moves to's wip vector
     */
+    // Safety check: validate job ID
+    if (jId < 0 || jId >= static_cast<int>(jobs.size())) {
+        return;
+    }
+    
     Job& job = jobs[jId];
     job.workspace++;
     if (job.workspace >= workspaces.size()) { // if at the last workspace
@@ -69,7 +68,10 @@ void Sim::progressJob(int jId) {
     }
     else {
         job.status = JobStatus::IDLE;
-        workspaces[job.workspace].wip.push_back(jId);
+        // Double-check workspace index before accessing
+        if (job.workspace < workspaces.size()) {
+            workspaces[job.workspace].wip.push_back(jId);
+        }
     }
 }
 
@@ -82,13 +84,18 @@ void Sim::runPolicy() {
         case PolicyType::RUN_IMMEDIATELY:
             for (Workspace& ws : workspaces) {
                 // check if there's any wip, check if there's any free machines, and then load them
-                if (ws.anyIdle() && ws.id == 0) {
+                // Limit job creation to prevent unbounded memory growth (max 1000 active jobs)
+                if (ws.anyIdle() && ws.id == 0 && jobs.size() < 1000) {
                     jobs.emplace_back(static_cast<int>(jobs.size()), JobStatus::IDLE, now);
                     ws.wip.push_back(jobs.back().id);
                 } 
                 if (ws.anyIdle() && ws.anyWIP()) {
-                    Event newServiceEnd = ws.startMachine(jobs[ws.findWIP()], now);
-                    schedule(newServiceEnd);
+                    int wipJobId = ws.findWIP();
+                    // Safety check: ensure job ID is valid before accessing
+                    if (wipJobId >= 0 && wipJobId < static_cast<int>(jobs.size())) {
+                        Event newServiceEnd = ws.startMachine(jobs[wipJobId], now);
+                        schedule(newServiceEnd);
+                    }
                 }
             }
             break;
@@ -136,8 +143,32 @@ void Sim::stepUntil(double runUntil) {
     while (timeline.size() != 0 && timeline.top().time <= runUntil) {
         Event e = timeline.top();
         timeline.pop();
+        now = e.time;
         handleEvent(e);
     }
+}
+
+void Sim::initialize() {
+    // clear any previous simulation state
+    jobs.clear();
+    totalTh = 0;
+    now = 0;
+    while (!timeline.empty()) {
+        timeline.pop();
+    }
+    
+    for (Workspace& ws : workspaces) {
+        ws.wip.clear();
+        // reset all machines to idle state with no job references
+        for (Machine& m : ws.machines) {
+            m.busy = false;
+            m.jobId = -1;
+        }
+    }
+    
+    // schedule first policy check to start the simulation
+    Event polCheck(0.0, EventType::POLICY_CHECK, -1, -1);
+    schedule(polCheck);
 }
 std::vector<WorkspaceView> Sim::getWorkspaceView() {
     std::vector<WorkspaceView> ret;

@@ -54,6 +54,7 @@ struct Sim {
     void loadFromConfigString(const std::string& jsonString); // web version
     void loadFromConfig(const std::string& configPath); // local version
     void stepUntil(double runUntil);
+    void initialize();
     std::vector<WorkspaceView> getWorkspaceView();
     MetricsView getMetricsView();
 
