@@ -82,19 +82,23 @@ void Sim::runPolicy() {
     */
     switch(policy) {
         case PolicyType::RUN_IMMEDIATELY:
+            // create one new job for workspace 0 if it has capacity and we're under job limit
+            if (workspaces.size() > 0 && workspaces[0].anyIdle() && !workspaces[0].anyWIP() && jobs.size() < 1000) {
+                jobs.emplace_back(static_cast<int>(jobs.size()), JobStatus::IDLE, now);
+                workspaces[0].wip.push_back(jobs.back().id);
+            }
+            
+            // start machines with available WIP
             for (Workspace& ws : workspaces) {
-                // check if there's any wip, check if there's any free machines, and then load them
-                // Limit job creation to prevent unbounded memory growth (max 1000 active jobs)
-                if (ws.anyIdle() && ws.id == 0 && jobs.size() < 1000) {
-                    jobs.emplace_back(static_cast<int>(jobs.size()), JobStatus::IDLE, now);
-                    ws.wip.push_back(jobs.back().id);
-                } 
-                if (ws.anyIdle() && ws.anyWIP()) {
+                while (ws.anyIdle() && ws.anyWIP()) {
                     int wipJobId = ws.findWIP();
-                    // Safety check: ensure job ID is valid before accessing
+                    // check job ID is valid before accessing
                     if (wipJobId >= 0 && wipJobId < static_cast<int>(jobs.size())) {
                         Event newServiceEnd = ws.startMachine(jobs[wipJobId], now);
                         schedule(newServiceEnd);
+                    }
+                    else {
+                        break; // invalid job ID
                     }
                 }
             }

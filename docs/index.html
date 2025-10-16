@@ -263,6 +263,7 @@
       // Create a completely fresh simulation instance
       sim = new wasmModule.Sim();
       const config = { stations: stations };
+      console.log(config);
       sim.loadFromConfig(JSON.stringify(config));
       sim.initialize();  // This clears all state and resets everything
       
@@ -273,7 +274,8 @@
       
       flash('Simulation restarted');
       console.log('Simulation restarted at t=0, jobs cleared, machines reset');
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to restart simulation:', error);
       errorState = true;
       showErrorScreen('RESTART FAILED', 
