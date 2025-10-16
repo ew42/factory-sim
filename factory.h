@@ -45,13 +45,15 @@ struct Workspace {
      * Data I want:
      * 1) id (in order, i.e. 1 -> 2 -> -> 3)
      * 2) Vec of machines
-     * 3) WIP at Workspace
-     * 4) a Distribution
+     * 3) Queue of jobs waiting for machines
+     * 4) Total WIP size (queue + active jobs)
+     * 5) a Distribution
      * How do I track busy?
      */
     int id;
     std::vector<Machine> machines; // Machine contains jobId(int) and busy(bool)
-    std::vector<int> wip;
+    std::vector<int> queue; // jobs waiting for machines
+    int wipSize; // total WIP at this workspace (queue + active jobs)
     NormDist dist;
 
     Workspace(int wsId, double mean, double stdDev, int machineNum); // need to update to include num of machines
@@ -60,8 +62,8 @@ struct Workspace {
     Event startMachine(Job& job, double time);
     bool anyIdle();
     int findIdle(); // returns index of an idle machine, if none, return -1
-    bool anyWIP();
-    int findWIP(); // only call after anyWIP
+    bool anyQueue();
+    int findQueue(); // only call after anyQueue
 };
 
 #endif // FACTORY_H

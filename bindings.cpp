@@ -6,7 +6,8 @@ EMSCRIPTEN_BINDINGS(factory_sim) {
         .field("id", &WorkspaceView::id)
         .field("m", &WorkspaceView::m)
         .field("busy", &WorkspaceView::busy)
-        .field("wip", &WorkspaceView::wip);
+        .field("queue", &WorkspaceView::queue)
+        .field("wipTotal", &WorkspaceView::wipTotal);
         
     emscripten::value_object<MetricsView>("MetricsView")
         .field("t", &MetricsView::t)

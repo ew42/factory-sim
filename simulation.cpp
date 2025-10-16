@@ -70,7 +70,8 @@ void Sim::progressJob(int jId) {
         job.status = JobStatus::IDLE;
         // Double-check workspace index before accessing
         if (job.workspace < workspaces.size()) {
-            workspaces[job.workspace].wip.push_back(jId);
+            workspaces[job.workspace].queue.push_back(jId);
+            workspaces[job.workspace].wipSize++;
         }
     }
 }
@@ -83,18 +84,19 @@ void Sim::runPolicy() {
     switch(policy) {
         case PolicyType::RUN_IMMEDIATELY:
             // create one new job for workspace 0 if it has capacity and we're under job limit
-            if (workspaces.size() > 0 && workspaces[0].anyIdle() && !workspaces[0].anyWIP() && jobs.size() < 1000) {
+            if (workspaces.size() > 0 && workspaces[0].anyIdle() && !workspaces[0].anyQueue() && jobs.size() < 1000) {
                 jobs.emplace_back(static_cast<int>(jobs.size()), JobStatus::IDLE, now);
-                workspaces[0].wip.push_back(jobs.back().id);
+                workspaces[0].queue.push_back(jobs.back().id);
+                workspaces[0].wipSize++;
             }
             
             // start machines with available WIP
             for (Workspace& ws : workspaces) {
-                while (ws.anyIdle() && ws.anyWIP()) {
-                    int wipJobId = ws.findWIP();
+                while (ws.anyIdle() && ws.anyQueue()) {
+                    int queueJobId = ws.findQueue();
                     // check job ID is valid before accessing
-                    if (wipJobId >= 0 && wipJobId < static_cast<int>(jobs.size())) {
-                        Event newServiceEnd = ws.startMachine(jobs[wipJobId], now);
+                    if (queueJobId >= 0 && queueJobId < static_cast<int>(jobs.size())) {
+                        Event newServiceEnd = ws.startMachine(jobs[queueJobId], now);
                         schedule(newServiceEnd);
                     }
                     else {
@@ -162,7 +164,8 @@ void Sim::initialize() {
     }
     
     for (Workspace& ws : workspaces) {
-        ws.wip.clear();
+        ws.queue.clear();
+        ws.wipSize = 0;
         // reset all machines to idle state with no job references
         for (Machine& m : ws.machines) {
             m.busy = false;
@@ -182,8 +185,9 @@ std::vector<WorkspaceView> Sim::getWorkspaceView() {
         int m = static_cast<int>(station.machines.size());
         int busy = std::count_if(station.machines.begin(), station.machines.end(), 
                                 [](const Machine& machine) { return machine.busy; });
-        int wip = static_cast<int>(station.wip.size());
-        ret.push_back(WorkspaceView{id, m, busy, wip});
+        int queue = static_cast<int>(station.queue.size());
+        int wipTotal = station.wipSize;
+        ret.push_back(WorkspaceView{id, m, busy, queue, wipTotal});
     }
     return ret;
 }
@@ -194,7 +198,7 @@ MetricsView Sim::getMetricsView() {
     int wip = 0;
     
     for (const Workspace& station : workspaces) {
-        wip += static_cast<int>(station.wip.size());
+        wip += station.wipSize;
     }
     
     return MetricsView{time, avgTh, wip};

@@ -4,7 +4,7 @@ Job::Job(unsigned int idNum, JobStatus stat, double release)
     : id(idNum), workspace(0), status(stat), releaseTime(release) {}
 
 Workspace::Workspace(int wsId, double mean, double stdDev, int machineNum)
-    : id(wsId), dist(mean, stdDev), machines(machineNum) {}
+    : id(wsId), dist(mean, stdDev), machines(machineNum), wipSize(0) {}
 
 int Workspace::finishMachine(int mId) {
     // return jId
@@ -12,10 +12,9 @@ int Workspace::finishMachine(int mId) {
     int jId = machines[mId].jobId;
     machines[mId].jobId = -1;
     
-    // remove job from wip
-    auto it = std::find(wip.begin(), wip.end(), jId);
-    if (it != wip.end()) {
-        wip.erase(it);
+    // decrement WIP size since job is leaving this workspace
+    if (wipSize > 0) {
+        wipSize--;
     }
     
     return jId;
@@ -27,6 +26,12 @@ Event Workspace::startMachine(Job& job, double startTime) { // should only be ca
     Machine& machine = machines[machineId];
     machine.busy = true;
     machine.jobId = job.id;
+    
+    // remove job from queue since it's now actively being processed
+    auto it = std::find(queue.begin(), queue.end(), job.id);
+    if (it != queue.end()) {
+        queue.erase(it);
+    }
     
     double delay = dist.sample();
     
@@ -51,11 +56,11 @@ int Workspace::findIdle() { // returns index of an idle machine, if none, return
     return -1;
 }
 
-bool Workspace::anyWIP() {
-    return wip.size() > 0;
+bool Workspace::anyQueue() {
+    return queue.size() > 0;
 }
 
-int Workspace::findWIP() { // only call after anyWIP
-    return wip.front();
+int Workspace::findQueue() { // only call after anyQueue
+    return queue.front();
 }
 
