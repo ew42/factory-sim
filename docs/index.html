@@ -13,7 +13,7 @@
   }
 </style>
 <pre id="screen"></pre>
-<script src="../factory-sim.js"></script>
+<script src="./factory-sim.js"></script>
 <script>
     let sim = null;
     let wasmModule = null;
@@ -32,7 +32,14 @@
     async function initializeSimulation() {
         screen.textContent = 'Loading factory simulation...';
         try {
+            // Check if Module is available
+            if (typeof Module === 'undefined') {
+                throw new Error('Module is not defined. The WebAssembly module failed to load.');
+            }
+            
+            console.log('Module type:', typeof Module);
             wasmModule = await Module();
+            console.log('WASM module initialized:', wasmModule);
             sim = new wasmModule.Sim();
             const config = { stations: DEFAULT_STATIONS };
             sim.loadFromConfig(JSON.stringify(config));
@@ -62,8 +69,10 @@
         }
     }
 
-    // Initialize when page loads
-    initializeSimulation();
+    // Initialize when page loads - add small delay to ensure script is fully loaded
+    window.addEventListener('load', () => {
+        setTimeout(initializeSimulation, 100);
+    });
 
 
     // UI state
