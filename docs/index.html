@@ -164,7 +164,7 @@
       lines.push('.'.repeat(72));
     });
 
-    lines.push(` Legend: [I] idle  [B] busy Q=[#####................]  `);
+    lines.push(` Legend: [I] idle  [B] busy Queue Length=[#####................]  WIP at station = (x) `);
     lines.push(` Controls: [space] pause=${paused?'ON ':'OFF'}  [-/=] slower/faster  [c] config  [R] restart`);
 
     if (showConfig) {
