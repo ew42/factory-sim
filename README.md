@@ -6,6 +6,7 @@ Check out the live [demo](https://ew42.github.io/factory-sim/)!
 After reading "The Goal" by Eliyahu Goldratt, I wanted to visualize and simulate factory operations, so I could implement lessons and experiment with concepts/policies from Theory of Constraints(TOC).
 
 ## Structure
+
 **Key Architecture Notes**
     - **Discrete Event Simulation**: Uses a priority queue (timeline) to process events chronologically
     - **Theory of Constraints Focus**: Designed to simulate and visualize factory constraints and bottlenecks
@@ -14,6 +15,7 @@ After reading "The Goal" by Eliyahu Goldratt, I wanted to visualize and simulate
     - **Metrics Collection**: Tracks throughput, WIP, and workspace utilization for TOC
 
 ### Core Simulation Engine
+
 factory-sim/
     main.cpp -- Loads config(.json file) and runs simulation
     simulation.h/.cpp -- Main simulation engine with discrete event loop
@@ -24,9 +26,11 @@ factory-sim/
     state_io.h -- Data structures for UI state (WorkspaceView, MetricsView)
 
 ### Configuration and Data
+
     config.json -- Simulation parameters (station, machines, distribution)
     
 ### Web Interface (WebAssembly)
+
     bindings.cpp -- Emscripten binmdings to expose C++ structs to JavaScript
     docs/
         index.html -- Web-based visualization interface
