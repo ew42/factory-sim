@@ -8,15 +8,14 @@ After reading "The Goal" by Eliyahu Goldratt, I wanted to visualize and simulate
 ## Structure
 
 **Key Architecture Notes**
-    - **Discrete Event Simulation**: Uses a priority queue (timeline) to process events chronologically
-    - **Theory of Constraints Focus**: Designed to simulate and visualize factory constraints and bottlenecks
-    - **Dual Interface**: Both native C++ executable and web-based visualization via WebAssembly
-    - **Policy-Driven**: Simulation behavior controlled by a configurable policies
-    - **Metrics Collection**: Tracks throughput, WIP, and workspace utilization for TOC
+- **Discrete Event Simulation**: Uses a priority queue (timeline) to process events chronologically
+- **Theory of Constraints Focus**: Designed to simulate and visualize factory constraints and bottlenecks
+- **Dual Interface**: Both native C++ executable and web-based visualization via WebAssembly
+- **Policy-Driven**: Simulation behavior controlled by a configurable policies
+- **Metrics Collection**: Tracks throughput, WIP, and workspace utilization for TOC
 
 ### Core Simulation Engine
 
-factory-sim/
     main.cpp -- Loads config(.json file) and runs simulation
     simulation.h/.cpp -- Main simulation engine with discrete event loop
     factory.h/.cpp -- Core data structures (Job, Machine, Workspace)
