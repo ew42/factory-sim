@@ -177,14 +177,14 @@
   function renderWithConfig(L) {
 
     // --- Config sidebar ---
-    const W = 58; // sidebar width
+    const W = 49; // sidebar width
     const RIGHT = [];
     RIGHT.push(' CONFIG '.padEnd(W,'='));
     RIGHT.push(' ↑/↓ : select station');
     RIGHT.push(' m/M : -/+ machines');
-    RIGHT.push(' p/P : -/+ queue cap');
-    RIGHT.push(' x   : set CCR to selected');
-    RIGHT.push(' s   : save to localStorage');
+    RIGHT.push(' p/P : -/+ change mean time');
+    // RIGHT.push(' x   : set CCR to selected');
+    // RIGHT.push(' s   : save to localStorage');
     RIGHT.push(' r   : reset to defaults');
     RIGHT.push(' c   : close panel');
     RIGHT.push('-'.repeat(W));
@@ -194,7 +194,9 @@
       RIGHT.push(`${mark} S${i+1}      machines:${padN(s.m,2)}  mean:${padN(s.mean.toFixed(1),4)}  stdev:${s.stdev.toFixed(1)}`);
     });
     RIGHT.push('-'.repeat(W));
-    RIGHT.push(`Tip: Use config to adjust station parameters.`);
+    RIGHT.push(`Tip: In order to change the config,`);
+    RIGHT.push(`simulation must be paused or at t < 1.0.`);
+
 
     // merge columns with a divider
     const merged = mergeColumns(L, RIGHT, ' │ ');
