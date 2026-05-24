@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include "types.h"
 #include "events.h"
 #include "factory.h"
@@ -48,7 +49,7 @@ struct Sim {
     std::priority_queue<Event, std::vector<Event>, Earlier> timeline;
     std::vector<Workspace> workspaces;
     std::vector<Job> jobs;
-    PolicyType policy = PolicyType::RUN_IMMEDIATELY;
+    PolicyType policy = PolicyType::DRUM_BUFFER_ROPE;
     
     void run();
     void handleEvent(const Event& e);

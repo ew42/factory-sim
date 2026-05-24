@@ -131,15 +131,14 @@ void Sim::runPolicy() {
 			 *			  you can only restart and change things
 			 *			- if I want to enable changing during operations, I'd need to make sure that I set pre-drum WIP and target WIP to -1 whenever changes occur
 			 */
-			if (preDrumWIP == -1) {
-				for (Workspace& ws: workspaces) {
-					if (!ws.isDrum()) { // getWIPCount includes jobs currently inside machines -- we don't count WIP inside drum as preDrumWIP
-						preDrumWIP += ws.getWIPCount();
-					}
-					else {
-						preDrumWIP += ws.getQueueSize();
-						break;
-					}
+			preDrumWIP = 0;
+			for (Workspace& ws: workspaces) {
+				if (!ws.isDrum()) { // getWIPCount includes jobs currently inside machines -- we don't count WIP inside drum as preDrumWIP
+					preDrumWIP += ws.getWIPCount();
+				}
+				else {
+					preDrumWIP += ws.getQueueSize();
+					break;
 				}
 			}
 			if (targetWIP == -1) {
@@ -147,13 +146,14 @@ void Sim::runPolicy() {
 				double bottleneckThroughput = -1;
 				for (Workspace& ws : workspaces) {
 					if (ws.isDrum()) {
-						bottleneckThroughput = static_cast<double>(ws.getMachineCount()) * ws.getMean();
+						bottleneckThroughput = static_cast<double>(ws.getMachineCount()) * (1/ws.getMean());
 						break;
 					}
 					else avgPreDrumLeadTime += ws.getMean();
 				}
 
 				targetWIP = static_cast<int>(std::ceil(bottleneckThroughput * (avgPreDrumLeadTime * bufferMultiplier)));
+				std::cout << "Target WIP: " << targetWIP << std::endl;
 			}
 
 			if (preDrumWIP < targetWIP) {
