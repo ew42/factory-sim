@@ -1,7 +1,7 @@
 #include "utils.h"
 
 NormDist::NormDist(double m, double s) 
-    : rng(1), mean(m), std(s), dist(m, s) {}
+    : rng(1), mean_(m), std_(s), dist(m, s) {}
 
 double NormDist::sample() {
     double x;
@@ -12,3 +12,10 @@ double NormDist::sample() {
     return x;
 }
 
+double NormDist::mean() const {
+	return mean_;
+}
+
+double NormDist::std() const {
+	return std_;
+}

@@ -54,9 +54,10 @@ struct Workspace {
     std::vector<Machine> machines; // Machine contains jobId(int) and busy(bool)
     std::vector<int> queue; // jobs waiting for machines
     int wipSize; // total WIP at this workspace (queue + active jobs)
+	bool isDrum_ = false;
     NormDist dist;
 
-    Workspace(int wsId, double mean, double stdDev, int machineNum); // need to update to include num of machines
+    Workspace(int wsId, double mean, double stdDev, int machineNum, bool drum); // need to update to include num of machines
 
     int finishMachine(int mId);
     Event startMachine(Job& job, double time);
@@ -64,6 +65,11 @@ struct Workspace {
     int findIdle(); // returns index of an idle machine, if none, return -1
     bool anyQueue();
     int findQueue(); // only call after anyQueue
+	bool isDrum() const;
+	double getMean();
+	int getMachineCount();
+	int getWIPCount();
+	int getQueueSize();
 };
 
 #endif // FACTORY_H

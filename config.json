@@ -1,6 +1,9 @@
 {
     "stations": [
-        {"m": 2, "mean":5.0, "stdev": 0.5},
-        {"m": 3, "mean":6.0, "stdev": 0.4}
+        {"m": 5, "mean":3.0, "stdev": 0.5, "isDrum_": false},
+        {"m": 5, "mean":3.0, "stdev": 0.5, "isDrum_": false},
+        {"m": 5, "mean":5.0, "stdev": 0.5, "isDrum_": true},
+        {"m": 5, "mean":3.0, "stdev": 0.5, "isDrum_": false},
+        {"m": 5, "mean":3.0, "stdev": 0.5, "isDrum_": false}
     ]
 }

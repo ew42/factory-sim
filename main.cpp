@@ -11,7 +11,8 @@ int main() {
         for (size_t i = 0; i < s.workspaces.size(); i++) {
             const auto& ws = s.workspaces[i];
             std::cout << "Workspace " << ws.id << ": " << ws.machines.size() 
-                      << " machines, mean=" << ws.dist.mean << ", stdev=" << ws.dist.std << std::endl;
+                      << " machines, mean=" << ws.dist.mean() << ", stdev= " << ws.dist.std() 
+					  << ", isDrum= " << ws.isDrum() << std::endl;
         }
         
         s.run();

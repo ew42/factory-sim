@@ -3,8 +3,8 @@
 Job::Job(unsigned int idNum, JobStatus stat, double release)
     : id(idNum), workspace(0), status(stat), releaseTime(release) {}
 
-Workspace::Workspace(int wsId, double mean, double stdDev, int machineNum)
-    : id(wsId), dist(mean, stdDev), machines(machineNum), wipSize(0) {}
+Workspace::Workspace(int wsId, double mean, double stdDev, int machineNum, bool drum)
+    : id(wsId), dist(mean, stdDev), machines(machineNum), wipSize(0),  isDrum_(drum) {}
 
 int Workspace::finishMachine(int mId) {
     // return jId
@@ -64,3 +64,22 @@ int Workspace::findQueue() { // only call after anyQueue
     return queue.front();
 }
 
+bool Workspace::isDrum() const {
+	return isDrum_;
+}
+
+double Workspace::getMean() {
+	return dist.mean();
+}
+
+int Workspace::getMachineCount() {
+	return static_cast<int>(machines.size());
+}
+
+int Workspace::getWIPCount() {
+	return wipSize;
+}
+
+int Workspace::getQueueSize() {
+	return static_cast<int>(queue.size());
+}

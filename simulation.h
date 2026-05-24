@@ -6,6 +6,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <algorithm>
+#include <cmath>
 #include "types.h"
 #include "events.h"
 #include "factory.h"
@@ -41,6 +42,9 @@ struct Sim {
     double now = 0; // time var
     double delay = 0.5; // policy tick every 0.5 seconds
     double stepSize = 1;
+	double bufferMultiplier = 1.5;
+	int preDrumWIP = -1;
+	int targetWIP = -1;
     std::priority_queue<Event, std::vector<Event>, Earlier> timeline;
     std::vector<Workspace> workspaces;
     std::vector<Job> jobs;

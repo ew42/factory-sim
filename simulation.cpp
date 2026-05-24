@@ -81,7 +81,7 @@ void Sim::runPolicy() {
      * Go through each workspace and check if it should be loaded
      *  - including workspace 0, aka a material release
     */
-    switch(policy) {
+    switch(policy) { // switch statement currently only controls when material is released
         case PolicyType::RUN_IMMEDIATELY:
             // create one new job for workspace 0 if it has capacity and we're under job limit
             if (workspaces.size() > 0 && workspaces[0].anyIdle() && !workspaces[0].anyQueue() && jobs.size() < 1000) {
@@ -89,23 +89,105 @@ void Sim::runPolicy() {
                 workspaces[0].queue.push_back(jobs.back().id);
                 workspaces[0].wipSize++;
             }
-            
-            // start machines with available WIP
-            for (Workspace& ws : workspaces) {
-                while (ws.anyIdle() && ws.anyQueue()) {
-                    int queueJobId = ws.findQueue();
-                    // check job ID is valid before accessing
-                    if (queueJobId >= 0 && queueJobId < static_cast<int>(jobs.size())) {
-                        Event newServiceEnd = ws.startMachine(jobs[queueJobId], now);
-                        schedule(newServiceEnd);
-                    }
-                    else {
-                        break; // invalid job ID
-                    }
-                }
-            }
             break;
+		case PolicyType::DRUM_BUFFER_ROPE:
+			/*
+			 * DBR logic should be pretty simple,
+			 * but I need to update structs in order to get the data needed to properly release
+			 * 		- need to know which workspace is the bottleneck
+			 * 		- need the average time it takes for a job to get from release -> bottleneck queue
+			 * 		- buffer multiplier in Sim
+			 *
+			 *
+			 * Little's Law: WIP = Throughput * Average Time in System
+			 * Modified for DBR: WIP = Throughput of Bottleneck Workspace * (Average Lead Time pre-Bottleneck * Buffer Multiplier)
+			 * We then target that calculated WIP, if pre-bottleneck WIP < target WIP -> release material
+			 * More explicitly: Target WIP = (number of machines at bottleneck * 1 job/machine mean completion time) * (sum of workspace means pre-bottleneck * buffer multiplier)
+			 *
+			 * Drum-Buffer-Rope's goal is to minimize work in progress inventory while keeping a bottleneck process constantly stocked
+			 * The Drum is the throughput of the bottleneck, the processes in the system should **march** to its beat
+			 * The Rope is that the material release/non-bottlenecks should be tied to the speed of the drum
+			 * The Buffer is that material should be released with enough time such that it arrives early, in spite of variance
+			 * 		ex: release if it takes 1 unit of time for material to reach to bottleneck, release it 1.5/2 units before bottleneck completion
+			 *
+			 * Outline of code implementation:
+			 * 		1) Each workspace has a bool, isDrum | only one workspace should have this set as true
+			 * 		2) Sim has a pre-drum WIP
+			 * 			- if == -1, sum all wipSize of workspaces before the drum
+			 * 				- set to -1 at startup
+			 * 		3) Sim has an int target WIP,
+			 * 			- if -1, sum the means of all workspaces prior to the drum
+			 * 				- -1 is a value that means "my value isn't meaningful, you must calculate"
+			 * 				- will be set to -1 at startup/if NormDist or the Machines vector fields are changed in any workspaces
+			 * 			- if pre-drum WIP < targetWIP
+			 * 				- releaseMaterial
+			 *
+			 *		Current questions:
+			 *			- what happens if bottleneck is workspace[0]?
+			 *				- currently that means that mean = 0, and targetWIP = 0
+			 *				- 
+			 *		Follow up:
+			 *			- right now, you can't change any features of the factory while it's running,
+			 *			  you can only restart and change things
+			 *			- if I want to enable changing during operations, I'd need to make sure that I set pre-drum WIP and target WIP to -1 whenever changes occur
+			 */
+			if (preDrumWIP == -1) {
+				for (Workspace& ws: workspaces) {
+					if (!ws.isDrum()) { // getWIPCount includes jobs currently inside machines -- we don't count WIP inside drum as preDrumWIP
+						preDrumWIP += ws.getWIPCount();
+					}
+					else {
+						preDrumWIP += ws.getQueueSize();
+						break;
+					}
+				}
+			}
+			if (targetWIP == -1) {
+				double avgPreDrumLeadTime = 0; // here's where I should deal with bottleneck being workspace[0]
+				double bottleneckThroughput = -1;
+				for (Workspace& ws : workspaces) {
+					if (ws.isDrum()) {
+						bottleneckThroughput = static_cast<double>(ws.getMachineCount()) * ws.getMean();
+						break;
+					}
+					else avgPreDrumLeadTime += ws.getMean();
+				}
+
+				targetWIP = static_cast<int>(std::ceil(bottleneckThroughput * (avgPreDrumLeadTime * bufferMultiplier)));
+			}
+
+			if (preDrumWIP < targetWIP) {
+				if (workspaces.size() > 0) {
+					jobs.emplace_back(static_cast<int>(jobs.size()), JobStatus::IDLE, now);
+					workspaces[0].queue.push_back(jobs.back().id);
+					workspaces[0].wipSize++;
+				}
+			}
+			else if (targetWIP == 0) { // in the case that the bottleneck is workspaces[0]
+				if (workspaces[0].anyIdle()) {
+					jobs.emplace_back(static_cast<int>(jobs.size()), JobStatus::IDLE, now);
+					workspaces[0].queue.push_back(jobs.back().id);
+					workspaces[0].wipSize++;
+				}
+			}
+
+			break;
     }
+            
+	// start machines with available WIP -- outside of switch statement
+	for (Workspace& ws : workspaces) {
+		while (ws.anyIdle() && ws.anyQueue()) {
+			int queueJobId = ws.findQueue();
+			// check job ID is valid before accessing
+			if (queueJobId >= 0 && queueJobId < static_cast<int>(jobs.size())) {
+				Event newServiceEnd = ws.startMachine(jobs[queueJobId], now);
+				schedule(newServiceEnd);
+			}
+			else {
+				break; // invalid job ID
+			}
+		}
+	}
 
 
 }
@@ -133,6 +215,8 @@ void Sim::loadFromConfig(const std::string& configPath) { // overloaded method f
 void Sim::loadFromJsonConfig(const nlohmann::json& config) {
     workspaces.clear();
     
+	bool seenDrum = false;
+
     const auto& stations = config["stations"];
     for (size_t i = 0; i < stations.size(); ++i) {
         const auto& station = stations[i];
@@ -141,8 +225,15 @@ void Sim::loadFromJsonConfig(const nlohmann::json& config) {
         int machineNum = station["m"];
         double mean = station["mean"];
         double stdev = station["stdev"];
+        bool isDrum = station["isDrum_"];
+		if (isDrum && seenDrum) { // there cannot be 2 drums in the same line, check for that here
+			throw std::runtime_error("Cannot be more than one drum workspace");
+		}
+		else if (isDrum) {
+			seenDrum = true;
+		}
         
-        workspaces.emplace_back(wsId, mean, stdev, machineNum);
+        workspaces.emplace_back(wsId, mean, stdev, machineNum, isDrum);
     }
 }
 void Sim::stepUntil(double runUntil) {

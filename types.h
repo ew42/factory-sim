@@ -16,7 +16,8 @@ enum class JobStatus {
 };
 
 enum class PolicyType {
-    RUN_IMMEDIATELY
+    RUN_IMMEDIATELY,
+	DRUM_BUFFER_ROPE
 };
 
 #endif // TYPES_H
