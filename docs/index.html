@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8" />
-<title>Factory TUI (Web + Config)</title>
+<title>Factory TUI</title>
 <style>
   html,body{height:100%;margin:0;background:#0b0c10;color:#c5c8c6}
   body{display:flex;align-items:center;justify-content:center}
@@ -24,8 +24,9 @@
         {m:5,mean:3, stdev:0.5, isDrum_:false},
         {m:5,mean:5, stdev:0.5, isDrum_:true},
         {m:5,mean:3, stdev:0.5, isDrum_:false},
-        {m:5,mean:3, stdev:0.5, isDrum_:false}
+        {m:5,mean:3, stdev:0.5, isDrum_:false},
     ];
+    
     
     let stations = structuredClone(DEFAULT_STATIONS);
 
@@ -183,19 +184,25 @@
     RIGHT.push(' ↑/↓ : select station');
     RIGHT.push(' m/M : -/+ machines');
     RIGHT.push(' p/P : -/+ change mean time');
-    // RIGHT.push(' x   : set CCR to selected');
+    RIGHT.push(' x   : set drum to selected');
     // RIGHT.push(' s   : save to localStorage');
-    RIGHT.push(' r   : reset to defaults');
+    RIGHT.push(' r   : restart with new config');
     RIGHT.push(' c   : close panel');
     RIGHT.push('-'.repeat(W));
 
     stations.forEach((s,i)=>{
       const mark = (i===sel)?'▶':' ';
-      RIGHT.push(`${mark} S${i+1}      machines:${padN(s.m,2)}  mean:${padN(s.mean.toFixed(1),4)}  stdev:${s.stdev.toFixed(1)}`);
+      RIGHT.push(`${mark}S${i+1}  machines:${padN(s.m,2)}  mean:${padN(s.mean.toFixed(1),4)}  stdev:${s.stdev.toFixed(1)}  ${s.isDrum_ ? "Drum" : ""}`);
     });
     RIGHT.push('-'.repeat(W));
-    RIGHT.push(`Tip: In order to change the config,`);
-    RIGHT.push(`simulation must be paused or at t < 1.0.`);
+    RIGHT.push(`Tips: In order to change the config,`);
+    RIGHT.push(`make your changes and then click 'r'.`);
+    RIGHT.push(``);
+    RIGHT.push(`'R' restarts the simulation to t = 0 with `);
+    RIGHT.push(`the currently running setup.`);
+    RIGHT.push(``);
+    RIGHT.push(`Drum sets the release rate to its pace, which`);
+    RIGHT.push(`doesn't mean it's necessarily the bottleneck.`);
 
 
     // merge columns with a divider
@@ -203,10 +210,11 @@
     screen.textContent = merged.join('\n');
   }
 
-  // Missing setCCR function
-  function setCCR(stationIndex) {
-    // This function would set the CCR (Critical Control Resource) but needs implementation
-    console.log('Setting CCR to station:', stationIndex);
+  function setDrum(stationIndex) {
+    stations.forEach((s, i) => {
+      s.isDrum_ = (i === stationIndex);
+    });
+    console.log('Setting Drum to station:', stationIndex);
   }
   // ====== Input ======
   addEventListener('keydown', e=>{
@@ -223,33 +231,25 @@
     // machines (only allow changes when paused or early in simulation)
     if(e.key==='m'){ 
       stations[sel].m = Math.max(1, stations[sel].m-1); 
-      if (t < 1.0 || paused) updateSimConfig(); 
-      else flash('Pause simulation or restart to change configuration');
     }
     if(e.key==='M'){ 
       stations[sel].m = Math.min(24, stations[sel].m+1); 
-      if (t < 1.0 || paused) updateSimConfig(); 
-      else flash('Pause simulation or restart to change configuration');
     }
 
     // mean processing time (only allow changes when paused or early in simulation)
     if(e.key==='p'){ 
       stations[sel].mean = Math.max(0.1, stations[sel].mean-0.1); 
-      if (t < 1.0 || paused) updateSimConfig(); 
-      else flash('Pause simulation or restart to change configuration');
     }
     if(e.key==='P'){ 
       stations[sel].mean = Math.min(10, stations[sel].mean+0.1); 
-      if (t < 1.0 || paused) updateSimConfig(); 
-      else flash('Pause simulation or restart to change configuration');
     }
 
-    // set CCR
-    if(e.key==='x'){ setCCR(sel); }
+    // set Drum
+    if(e.key==='x'){ setDrum(sel); }
 
     // save/reset
-    if(e.key==='s'){ saveConfig(stations); flash('Saved config to localStorage'); }
-    if(e.key==='r'){ stations = structuredClone(DEFAULT_STATIONS); initializeNewSimulation(); setCCR(3); flash('Reset to defaults'); }
+    // if(e.key==='s'){ saveConfig(stations); flash('Saved config to localStorage'); }
+    if(e.key==='r') updateSimConfig();
   });
   
   function updateSimConfig() {
